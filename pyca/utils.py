@@ -128,12 +128,13 @@ def ensurelist(x):
     return x if type(x) == list else [x]
 
 
-def register_ca(status='idle'):
+def register_ca(status='idle', configuration={}):
     '''Register this capture agent at the Matterhorn admin server so that it
     shows up in the admin interface.
 
     :param address: Address of the capture agent web ui
     :param status: Current status of the capture agent
+    :param configuration: Configuration keys for capture agent
     '''
     # If this is a backup CA we don't tell the Matterhorn core that we are
     # here.  We will just run silently in the background:
@@ -146,8 +147,26 @@ def register_ca(status='idle'):
         response = http_request(url, params).decode('utf-8')
         if response:
             logger.info(response)
+        if config()['capture']['inputs']:
+            configuration = {
+                'capture.device.names': ','.join(config()['capture']['inputs'])
+            }
+        register_inputs(url, json.dumps(configuration))
     except pycurl.error as e:
         logger.warning('Could not set agent state to %s: %s' % (status, e))
+
+
+def register_inputs(url, inputs):
+    '''Register available input sources with Opencast.
+    '''
+    params = [('configuration', inputs)]
+    url = '%s/configuration' % (url)
+    try:
+        response = http_request(url, params).decode('utf-8')
+        if response:
+            logger.info('CA configuration: %s' % response)
+    except pycurl.error as e:
+        logger.warning('Could not set agent inputs to %s: %s' % (inputs, e))
 
 
 def recording_state(recording_id, status):

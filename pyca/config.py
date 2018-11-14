@@ -32,6 +32,7 @@ sigcustom_time   = integer(min=-1, default=-1)
 sigterm_time     = integer(min=-1, default=-1)
 sigkill_time     = integer(min=-1, default=120)
 exit_code        = integer(min=0, max=255, default=0)
+inputs           = force_list(default=list())
 
 [server]
 url              = string(default='https://develop.opencast.org')
