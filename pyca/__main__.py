@@ -31,8 +31,8 @@ OPTIONS:
 CONFIGURATION:
   PyCA will try to find a configuration in the following order:
    - Configuration specified on the command line
-   - /etc/pyca.conf
    - ./etc/pyca.conf
+   - /etc/pyca.conf
 '''
 
 
@@ -112,7 +112,7 @@ def main():
         agentstate.run()
     elif cmd == 'ui':
         signal.signal(signal.SIGINT, signal.default_int_handler)
-        ui.app.run()
+        ui.app.run(threaded=False)
     else:
         # Invalid command
         usage(3)

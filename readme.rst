@@ -33,44 +33,45 @@ configuration`_.
 While we will continue to support Python 2 until the end of 2019, we recommend using
 Python 3 if possible.
 
-
 Installation
 ************
 
 Note that, by default, pyCA is configured to use FFmpeg_ for recording and you
 will need to have it installed as well if you do not change the configuration.
 
-Here is a short summary for Debian based OS like Raspian::
+For **Debian based OS**, like Ubuntu or Raspbian, we maintain an APT repository.
+Here is a short summary how to use it.
+
+.. code-block:: shell
+
+  # Install prerequisites
+  apt-get install apt-transport-https
+
+  # Include PyCA's Signing Key
+  apt-key adv --fetch https://pyca.deb.opencast.org/gpg.key
+
+  # Add the Repository
+  echo "deb [arch=all] https://pyca.deb.opencast.org/opencast-pyca buster main" > /etc/apt/sources.list.d/opencast-pyca.list
+
+  # Update your cache and install PyCA
+  apt-get update
+  apt-get install opencast-pyca
+
+Once installed, you can use your regular update mechanisms to keep PyCA up to date.
+The configuration can be found unter `/etc/pyca.conf` and contains reasonable defaults.
+All PyCA components will be started automatically and you can reach the UI under http://localhost:8000.
+
+On Fedora ≥ 31 or CentOS 8::
 
   git clone https://github.com/opencast/pyCA.git
   cd pyCA
-  apt-get install python-configobj python-dateutil python-pycurl \
-    python-flask python-sqlalchemy python-sdnotify
-  vim etc/pyca.conf <-- Edit the configuration
-  ./start.sh
-
-On Fedora::
-
-  git clone https://github.com/opencast/pyCA.git
-  cd pyCA
-  dnf copr enable lkiesow/python-sdnotify
-  dnf install python-pycurl python-dateutil python-configobj \
-    python-flask python-sqlalchemy python-sdnotify
-  vim etc/pyca.conf <-- Edit the configuration
-  ./start.sh
-
-On RHEL/CentOS 7 (we activate Python 3 for this)::
-
-  git clone https://github.com/opencast/pyCA.git
-  cd pyCA/
-  yum install centos-release-scl
-  yum install rh-python36 git gcc libcurl-devel.x86_64 nss-devel.x86_64
-  scl enable rh-python36 bash
-  python -m venv venv
+  dnf install gcc python3-devel libcurl-devel openssl-devel
+  python3 -m venv venv
   . ./venv/bin/activate
-  export PYCURL_SSL_LIBRARY=nss
+  export PYCURL_SSL_LIBRARY=openssl
   pip install -r requirements.txt
-  vim etc/pyca.conf  <-- Edit the configuration
+  npm ci
+  vim etc/pyca.conf <-- Edit the configuration
   ./start.sh
 
 To restart pyCA later, reactivate the virtual environment by re-running
@@ -83,6 +84,7 @@ On Arch Linux::
   cd pyCA
   sudo pacman -S python-pycurl python-dateutil \
     python-configobj python-sqlalchemy
+  npm ci
   vim etc/pyca.conf  <-- Edit the configuration
   ./start.sh
 
@@ -143,6 +145,9 @@ using Gunicorn, would be to run::
 For more information, have a look at the help option of gunicorn or go to the
 `Gunicorn online documentation`_.
 
+In addition to the WSGI server, you should use a reverse proxy,
+if you want the ui to listen to anything but `localhost`.
+Some example configuration files for Nginx_ can be found under `reverse-proxy <reverse-proxy>`_.
 
 JSON API
 ********
@@ -175,9 +180,24 @@ could look like this::
 
     command          = '''ffmpeg -nostats -re
                           -f lavfi -r 25 -i testsrc
-                          -f lavfi -i sine -t {{time}}
-                          -map 0:v -map 1:a {{dir}}/{{name}}.webm
-                          -map 0:v -r 1 -updatefirst 1 {{previewdir}}/preview.jpg'''
+                          -f lavfi -i sine
+                          -t {{time}} -map 0:v -map 1:a {{dir}}/{{name}}.webm
+                          -t {{time}} -map 0:v -r 1 -update 1 {{previewdir}}/preview.jpg'''
+
+    preview = '{{previewdir}}/preview.jpg'
+
+Of ourse, you can build more complex pipelines. For example, you could include
+a volume meter like this::
+
+    command          = '''ffmpeg -nostats -re
+                          -f lavfi -r 25 -i testsrc
+                          -f lavfi -i sine
+                          -t {{time}} -map 0:v -map 1:a {{dir}}/{{name}}.webm
+                          -t {{time}} -filter_complex '
+                            [1:a] showvolume=w=640:p=0.8 [vol];
+                            [0:v] scale=640:-2 [img];
+                            [img][vol] overlay=0:0 [preview]'
+                          -map '[preview]' -r 1 -update 1 {{previewdir}}/preview.jpg'''
 
     preview = '{{previewdir}}/preview.jpg'
 
@@ -187,6 +207,7 @@ file while simultaneously updating a still image every second.
 .. _Opencast: https://opencast.org
 .. _GNU Lesser General Public License: https://raw.githubusercontent.com/opencast/pyCA/master/license.lgpl
 .. _Raspberry Pi: https://raspberrypi.org
+.. _Nginx: https://www.nginx.com
 .. _AUR: https://aur.archlinux.org/packages/pyca
 .. _Gunicorn online documentation: https://gunicorn.org
 .. _Travis configuration: https://raw.githubusercontent.com/opencast/pyCA/master/.travis.yml
